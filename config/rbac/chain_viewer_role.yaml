@@ -1,0 +1,20 @@
+# permissions for end users to view chains.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: chain-viewer-role
+rules:
+- apiGroups:
+  - authcontroller.intel.com
+  resources:
+  - chains
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - authcontroller.intel.com
+  resources:
+  - chains/status
+  verbs:
+  - get

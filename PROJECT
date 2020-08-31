@@ -1,3 +1,10 @@
 domain: intel.com
 repo: intel.com/authservice-webhook
+resources:
+- group: authcontroller
+  kind: Configuration
+  version: v1
+- group: authcontroller
+  kind: Chain
+  version: v1
 version: "2"
