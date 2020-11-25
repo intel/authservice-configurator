@@ -113,52 +113,52 @@ If used with Ingress Gateway controller, make sure Ingress Gateway proxy is conf
       name: external-authz-filter-for-ingress
       namespace: istio-system
     spec:
-    workloadSelector:
-      labels:
-        istio: ingressgateway
-        app: istio-ingressgateway
-    configPatches:
-    - applyTo: HTTP_FILTER
-      match:
-        context: GATEWAY
-        listener:
-          filterChain:
-            filter:
-              name: "envoy.http_connection_manager"
-              subFilter:
-                name: "envoy.filters.http.jwt_authn"
-      patch:
-        operation: INSERT_BEFORE
-        value:
-          name: envoy.ext_authz
-          typed_config:
-            "@type": type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthz
-            stat_prefix: ext_authz
-            grpc_service:
-              envoy_grpc:
-                cluster_name: ext_authz
-              timeout: 10s # Timeout for the entire request (including authcode for token exchange with the IDP)
-    - applyTo: CLUSTER
-      match:
-        context: ANY
-        cluster: {} # this line is required starting in istio 1.4.0
-      patch:
-        operation: ADD
-        value:
-          name: ext_authz
-          connect_timeout: 5s # This timeout controls the initial TCP handshake timeout - not the timeout for the entire request
-          type: LOGICAL_DNS
-          lb_policy: ROUND_ROBIN
-          http2_protocol_options: {}
-          load_assignment:
-            cluster_name: ext_authz
-            endpoints:
-            - lb_endpoints:
-              - endpoint:
-                  address:
-                    socket_address:
-                      address: authservice
-                      port_value: 10003
+      workloadSelector:
+        labels:
+          istio: ingressgateway
+          app: istio-ingressgateway
+      configPatches:
+      - applyTo: HTTP_FILTER
+        match:
+          context: GATEWAY
+          listener:
+            filterChain:
+              filter:
+                name: "envoy.http_connection_manager"
+                subFilter:
+                  name: "envoy.filters.http.jwt_authn"
+        patch:
+          operation: INSERT_BEFORE
+          value:
+            name: envoy.ext_authz
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthz
+              stat_prefix: ext_authz
+              grpc_service:
+                envoy_grpc:
+                  cluster_name: ext_authz
+                timeout: 10s # Timeout for the entire request (including authcode for token exchange with the IDP)
+      - applyTo: CLUSTER
+        match:
+          context: ANY
+          cluster: {} # this line is required starting in istio 1.4.0
+        patch:
+          operation: ADD
+          value:
+            name: ext_authz
+            connect_timeout: 5s # This timeout controls the initial TCP handshake timeout - not the timeout for the entire request
+            type: LOGICAL_DNS
+            lb_policy: ROUND_ROBIN
+            http2_protocol_options: {}
+            load_assignment:
+              cluster_name: ext_authz
+              endpoints:
+              - lb_endpoints:
+                - endpoint:
+                    address:
+                      socket_address:
+                        address: authservice
+                        port_value: 10003
 
 ## AuthService over TLS connection
 
@@ -170,43 +170,63 @@ If you want to use AuthService over a TLS connection, use this EnvoyFilter:
       name: external-authz-filter-for-ingress-tls
       namespace: istio-system
     spec:
-    workloadSelector:
-      labels:
-        istio: ingressgateway
-        app: istio-ingressgateway
-    configPatches:
-  - applyTo: CLUSTER
-    match:
-      context: ANY
-      cluster: {} # this line is required starting in istio 1.4.0
-    patch:
-      operation: ADD
-      value:
-        name: ext_authz
-        connect_timeout: 5s # This timeout controls the initial TCP handshake timeout - not the timeout for the entire request
-        type: LOGICAL_DNS
-        lb_policy: ROUND_ROBIN
-        http2_protocol_options: {}
-        load_assignment:
-          cluster_name: ext_authz
-          endpoints:
-            - lb_endpoints:
-                - endpoint:
-                    address:
-                      socket_address:
-                        address: authservice.istio-system
-                        port_value: 443
-        transport_socket:
-          name: envoy.transport_sockets.tls
-          typed_config:
-            "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext
-          sni: authservice.istio-system
-          common_tls_context:
-            validation_context:
-              match_subject_alt_names:
-              - exact: "authservice.istio-system"
-              trusted_ca:
-                inline_string: "-----BEGIN CERTIFICATE-----\nMIIDMDCCAhigAwIBAgIJANeAVS2STWGLMA0GCSqGSIb3DQEBCwUAMC0xFTATBgNV\nBAoMDGV4YW1wbGUgSW5jLjEUMBIGA1UEAwwLZXhhbXBsZS5jb20wHhcNMjAwODIw\nMDcyNTM5WhcNMjEwODIwMDcyNTM5WjAtMRUwEwYDVQQKDAxleGFtcGxlIEluYy4x\nFDASBgNVBAMMC2V4YW1wbGUuY29tMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIB\nCgKCAQEAs895MMU+yT7rivsjwJlWVmgzKOvK/9TW1esJCvkxsKpu/FnDmUcEJs9M\neUU8ahYgMWQFPNpYv/p2G8YqeIkXNyRtiiI0k9SG7KhkIpt1ltKjFJFBRW1hclln\nGDaDKHNraf84YK2Un/usJYW4/cOuySW41Bo5YSAqX0hrU/Cqeg2SCdZxit6kkYhg\nExK5mei1jNGJF8ILCuQlULQJjSb/b1pgyATDGu/hok2Bm6LXJMbF6B/Ti44VghNz\nLXscyQwjABmE230Tzm1g3wMJgCbjlR0prhWeYahP2mBJluG8cGZQ1KXMRmA7JA0i\ndCitaqxpattG2EtZX//32YlFgxVgCQIDAQABo1MwUTAdBgNVHQ4EFgQUcM9zQaUh\nEi07KEULbAxO/JnAiIkwHwYDVR0jBBgwFoAUcM9zQaUhEi07KEULbAxO/JnAiIkw\nDwYDVR0TAQH/BAUwAwEB/zANBgkqhkiG9w0BAQsFAAOCAQEAQyIrPxlzkVU9dPft\nKsJvh4sVyeAeT2apGkWangfG6Xf328Oh04snZtLo2ltKI5OHQD5y5EKNItOkGBCb\nh24tF3sk9PYQCDbl8xE7S6OWFHvxiKjB6m6QjxwcUPROEQHFntsGIcyj9sebmKg/\nIpoq6DGt5HfMVJLYQTOadsTF07sjWe6nIML7l3SC1l8y0UsUd8wWf2sdE6dznfuw\nKfGvKiB50yTSPFhVTQIJLainaLWPlQxKNdN8WMaMuz0NyZOTHjHAvYbP7wFmaCov\nO4RDbtyWeDqgnNiL9xv7E+iMIsCV1jpv2TnCa+U0s8DleFttzBks75ciXqECMKSE\nXuw4PQ==\n-----END CERTIFICATE-----"
+      workloadSelector:
+        labels:
+          istio: ingressgateway
+          app: istio-ingressgateway
+      configPatches:
+      - applyTo: HTTP_FILTER
+        match:
+          context: GATEWAY
+          listener:
+            filterChain:
+              filter:
+                name: "envoy.http_connection_manager"
+                subFilter:
+                  name: "envoy.filters.http.jwt_authn"
+        patch:
+          operation: INSERT_BEFORE
+          value:
+            name: envoy.ext_authz
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthz
+              stat_prefix: ext_authz
+              grpc_service:
+                envoy_grpc:
+                  cluster_name: ext_authz
+                timeout: 10s # Timeout for the entire request (including authcode for token exchange with the IDP)
+      - applyTo: CLUSTER
+        match:
+          context: GATEWAY
+          cluster: {}
+        patch:
+          operation: ADD
+            value:
+              name: ext_authz
+              connect_timeout: 5s # This timeout controls the initial TCP handshake timeout - not the timeout for the entire request
+              type: LOGICAL_DNS
+              lb_policy: ROUND_ROBIN
+              http2_protocol_options: {}
+              load_assignment:
+                cluster_name: ext_authz
+                endpoints:
+                  - lb_endpoints:
+                      - endpoint:
+                          address:
+                            socket_address:
+                              address: authservice.istio-system
+                              port_value: 443
+              transport_socket:
+                name: envoy.transport_sockets.tls
+                typed_config:
+                  "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext
+                sni: authservice.istio-system
+                common_tls_context:
+                  validation_context:
+                    match_subject_alt_names:
+                    - exact: "authservice.istio-system"
+                    trusted_ca:
+                      inline_string: "-----BEGIN CERTIFICATE-----\nMIIDMDCCAhigAwIBAgIJANeAVS2STWGLMA0GCSqGSIb3DQEBCwUAMC0xFTATBgNV\nBAoMDGV4YW1wbGUgSW5jLjEUMBIGA1UEAwwLZXhhbXBsZS5jb20wHhcNMjAwODIw\nMDcyNTM5WhcNMjEwODIwMDcyNTM5WjAtMRUwEwYDVQQKDAxleGFtcGxlIEluYy4x\nFDASBgNVBAMMC2V4YW1wbGUuY29tMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIB\nCgKCAQEAs895MMU+yT7rivsjwJlWVmgzKOvK/9TW1esJCvkxsKpu/FnDmUcEJs9M\neUU8ahYgMWQFPNpYv/p2G8YqeIkXNyRtiiI0k9SG7KhkIpt1ltKjFJFBRW1hclln\nGDaDKHNraf84YK2Un/usJYW4/cOuySW41Bo5YSAqX0hrU/Cqeg2SCdZxit6kkYhg\nExK5mei1jNGJF8ILCuQlULQJjSb/b1pgyATDGu/hok2Bm6LXJMbF6B/Ti44VghNz\nLXscyQwjABmE230Tzm1g3wMJgCbjlR0prhWeYahP2mBJluG8cGZQ1KXMRmA7JA0i\ndCitaqxpattG2EtZX//32YlFgxVgCQIDAQABo1MwUTAdBgNVHQ4EFgQUcM9zQaUh\nEi07KEULbAxO/JnAiIkwHwYDVR0jBBgwFoAUcM9zQaUhEi07KEULbAxO/JnAiIkw\nDwYDVR0TAQH/BAUwAwEB/zANBgkqhkiG9w0BAQsFAAOCAQEAQyIrPxlzkVU9dPft\nKsJvh4sVyeAeT2apGkWangfG6Xf328Oh04snZtLo2ltKI5OHQD5y5EKNItOkGBCb\nh24tF3sk9PYQCDbl8xE7S6OWFHvxiKjB6m6QjxwcUPROEQHFntsGIcyj9sebmKg/\nIpoq6DGt5HfMVJLYQTOadsTF07sjWe6nIML7l3SC1l8y0UsUd8wWf2sdE6dznfuw\nKfGvKiB50yTSPFhVTQIJLainaLWPlQxKNdN8WMaMuz0NyZOTHjHAvYbP7wFmaCov\nO4RDbtyWeDqgnNiL9xv7E+iMIsCV1jpv2TnCa+U0s8DleFttzBks75ciXqECMKSE\nXuw4PQ==\n-----END CERTIFICATE-----"
 
 You'll need to deploy AuthService together with an Envoy sidecar which will handle the TLS termination.
 
@@ -343,7 +363,8 @@ You'll need to deploy AuthService together with an Envoy sidecar which will hand
 
 In addition you'll need to create secret `ca-authservice-certs` which has
 files `/etc/envoy/tls/tls.crt` and `/etc/envoy/tls/tls.key`, and the cert
-needs to be signed by the CA referenced in the `trusted_ca` field above.
+needs to be signed by the CA referenced in the `trusted_ca` field above. The
+SNI has to be `authservice.istio-system`.
 
 # Known issues and missing features
   * Better defaults for RBAC for the Configuration and Chain objects
