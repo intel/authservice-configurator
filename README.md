@@ -110,7 +110,7 @@ If used with Ingress Gateway controller, make sure Ingress Gateway proxy is conf
     apiVersion: networking.istio.io/v1alpha3
     kind: EnvoyFilter
     metadata:
-      name: sidecar-token-service-filter-for-ingress
+      name: external-authz-filter-for-ingress
       namespace: istio-system
     spec:
     workloadSelector:
@@ -160,6 +160,190 @@ If used with Ingress Gateway controller, make sure Ingress Gateway proxy is conf
                       address: authservice
                       port_value: 10003
 
+## AuthService over TLS connection
+
+If you want to use AuthService over a TLS connection, use this EnvoyFilter:
+
+    apiVersion: networking.istio.io/v1alpha3
+    kind: EnvoyFilter
+    metadata:
+      name: external-authz-filter-for-ingress-tls
+      namespace: istio-system
+    spec:
+    workloadSelector:
+      labels:
+        istio: ingressgateway
+        app: istio-ingressgateway
+    configPatches:
+  - applyTo: CLUSTER
+    match:
+      context: ANY
+      cluster: {} # this line is required starting in istio 1.4.0
+    patch:
+      operation: ADD
+      value:
+        name: ext_authz
+        connect_timeout: 5s # This timeout controls the initial TCP handshake timeout - not the timeout for the entire request
+        type: LOGICAL_DNS
+        lb_policy: ROUND_ROBIN
+        http2_protocol_options: {}
+        load_assignment:
+          cluster_name: ext_authz
+          endpoints:
+            - lb_endpoints:
+                - endpoint:
+                    address:
+                      socket_address:
+                        address: authservice.istio-system
+                        port_value: 443
+        transport_socket:
+          name: envoy.transport_sockets.tls
+          typed_config:
+            "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext
+          sni: authservice.istio-system
+          common_tls_context:
+            validation_context:
+              match_subject_alt_names:
+              - exact: "authservice.istio-system"
+              trusted_ca:
+                inline_string: "-----BEGIN CERTIFICATE-----\nMIIDMDCCAhigAwIBAgIJANeAVS2STWGLMA0GCSqGSIb3DQEBCwUAMC0xFTATBgNV\nBAoMDGV4YW1wbGUgSW5jLjEUMBIGA1UEAwwLZXhhbXBsZS5jb20wHhcNMjAwODIw\nMDcyNTM5WhcNMjEwODIwMDcyNTM5WjAtMRUwEwYDVQQKDAxleGFtcGxlIEluYy4x\nFDASBgNVBAMMC2V4YW1wbGUuY29tMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIB\nCgKCAQEAs895MMU+yT7rivsjwJlWVmgzKOvK/9TW1esJCvkxsKpu/FnDmUcEJs9M\neUU8ahYgMWQFPNpYv/p2G8YqeIkXNyRtiiI0k9SG7KhkIpt1ltKjFJFBRW1hclln\nGDaDKHNraf84YK2Un/usJYW4/cOuySW41Bo5YSAqX0hrU/Cqeg2SCdZxit6kkYhg\nExK5mei1jNGJF8ILCuQlULQJjSb/b1pgyATDGu/hok2Bm6LXJMbF6B/Ti44VghNz\nLXscyQwjABmE230Tzm1g3wMJgCbjlR0prhWeYahP2mBJluG8cGZQ1KXMRmA7JA0i\ndCitaqxpattG2EtZX//32YlFgxVgCQIDAQABo1MwUTAdBgNVHQ4EFgQUcM9zQaUh\nEi07KEULbAxO/JnAiIkwHwYDVR0jBBgwFoAUcM9zQaUhEi07KEULbAxO/JnAiIkw\nDwYDVR0TAQH/BAUwAwEB/zANBgkqhkiG9w0BAQsFAAOCAQEAQyIrPxlzkVU9dPft\nKsJvh4sVyeAeT2apGkWangfG6Xf328Oh04snZtLo2ltKI5OHQD5y5EKNItOkGBCb\nh24tF3sk9PYQCDbl8xE7S6OWFHvxiKjB6m6QjxwcUPROEQHFntsGIcyj9sebmKg/\nIpoq6DGt5HfMVJLYQTOadsTF07sjWe6nIML7l3SC1l8y0UsUd8wWf2sdE6dznfuw\nKfGvKiB50yTSPFhVTQIJLainaLWPlQxKNdN8WMaMuz0NyZOTHjHAvYbP7wFmaCov\nO4RDbtyWeDqgnNiL9xv7E+iMIsCV1jpv2TnCa+U0s8DleFttzBks75ciXqECMKSE\nXuw4PQ==\n-----END CERTIFICATE-----"
+
+You'll need to deploy AuthService together with an Envoy sidecar which will handle the TLS termination.
+
+    apiVersion: v1
+    kind: Service
+    metadata:
+      name: authservice
+      namespace: istio-system
+      labels:
+        app: authservice-behind-envoy
+    spec:
+      type: ClusterIP
+      ports:
+      - port: 443
+        targetPort: 30001
+        protocol: TCP
+        name: https
+      selector:
+        app: authservice-behind-envoy
+    ---
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: envoy-config
+      namespace: istio-system
+    data:
+      envoy-conf.yaml: |
+        static_resources:
+          listeners:
+          - address:
+              socket_address:
+                address: 0.0.0.0
+                port_value: 30001
+            filter_chains:
+              tls_context:
+                common_tls_context:
+                  tls_certificates:
+                    certificate_chain: { "filename": "/etc/envoy/tls/tls.crt" }
+                    private_key: { "filename": "/etc/envoy/tls/tls.key" }
+              filters:
+              - name: envoy.http_connection_manager
+                config:
+                  codec_type: auto
+                  stat_prefix: ingress_http
+                  route_config:
+                    name: local_route
+                    virtual_hosts:
+                    - name: backend
+                      domains:
+                      - "*"
+                      routes:
+                      - match:
+                          prefix: "/"
+                        route:
+                          cluster: local_service
+                  http_filters:
+                  - name: envoy.router
+                    config: {}
+          clusters:
+          - name: local_service
+            connect_timeout: 3.25s
+            type: LOGICAL_DNS
+            lb_policy: round_robin
+            hosts:
+            - socket_address:
+                address: localhost
+                port_value: 10003
+        admin:
+          access_log_path: "/dev/null"
+          address:
+            socket_address:
+              address: 0.0.0.0
+              port_value: 9001
+    ---
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: authservice-behind-envoy
+      namespace: istio-system
+      labels:
+        app: authservice-behind-envoy
+    spec:
+      replicas: 1
+      selector:
+        matchLabels:
+          app: authservice-behind-envoy
+      template:
+        metadata:
+          labels:
+            app: authservice-behind-envoy
+        spec:
+          containers:
+            - name: envoy
+              image: envoyproxy/envoy:v1.16-latest
+              imagePullPolicy: IfNotPresent
+              securityContext:
+                capabilities:
+                  add: ["IPC_LOCK"]
+              args:
+                - "-c"
+                - "/etc/envoy/config/envoy-conf.yaml"
+                - "--cpuset-threads"
+              ports:
+                - containerPort: 30001
+              volumeMounts:
+                - name: tls
+                  mountPath: /etc/envoy/tls
+                  readOnly: true
+                - name: config
+                  mountPath: /etc/envoy/config
+                  readOnly: true
+                - name: resetdir
+                  mountPath: /etc/ssl
+            - name: authservice
+              image: adrianlzt/authservice:0.3.1-d3cd2d498169
+              imagePullPolicy: Always
+              ports:
+              - containerPort: 10003
+              volumeMounts:
+              - name: authservice-configmap-volume
+                mountPath: /etc/authservice
+          volumes:
+          - name: authservice-configmap-volume
+            configMap:
+              name: authservice-configmap
+          - name: resetdir
+            emptyDir: {}
+          - name: tls
+            secret:
+              secretName: ca-authservice-certs
+          - name: config
+            configMap:
+              name: envoy-config
+
+In addition you'll need to create secret `ca-authservice-certs` which has
+files `/etc/envoy/tls/tls.crt` and `/etc/envoy/tls/tls.key`, and the cert
+needs to be signed by the CA referenced in the `trusted_ca` field above.
 
 # Known issues and missing features
   * Better defaults for RBAC for the Configuration and Chain objects
