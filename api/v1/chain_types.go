@@ -42,7 +42,6 @@ type ChainMatch struct {
 type ChainSpec struct {
 	// Desired state of cluster
 	Match                       ChainMatch `json:"match,omitempty"`
-	Configuration               string     `json:"configuration,omitempty"`
 	AuthorizationURI            string     `json:"authorizationUri,omitempty"`
 	TokenURI                    string     `json:"tokenUri,omitempty"`
 	CallbackURI                 string     `json:"callbackUri,omitempty"`

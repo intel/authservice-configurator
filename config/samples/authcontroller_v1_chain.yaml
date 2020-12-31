@@ -3,7 +3,6 @@ kind: Chain
 metadata:
   name: chain-sample-1
 spec:
-  configuration: "configuration-sample"
   authorizationUri: "https://example.com/auth/realms/service-name/protocol/openid-connect/auth"
   tokenUri: "https://example.com/auth/realms/service-name/protocol/openid-connect/token"
   callbackUri: "https://example.com/service/oauth/callback"

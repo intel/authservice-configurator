@@ -85,12 +85,12 @@ type JSONConfigData struct {
 	Chains        []*JSONChain `json:"chains,omitempty"`
 }
 
-func createAuthserviceConfiguration(configuration *authcontroller.Configuration, chains *authcontroller.ChainList) *JSONConfigData {
+func createAuthserviceConfiguration(threads int, chains *authcontroller.ChainList) *JSONConfigData {
 	configData := JSONConfigData{
 		ListenAddress: "0.0.0.0",
 		ListenPort:    "10003",
 		LogLevel:      "trace",
-		Threads:       configuration.Spec.Threads,
+		Threads:       threads,
 		Chains:        make([]*JSONChain, len(chains.Items)),
 	}
 
@@ -136,17 +136,17 @@ func createAuthserviceConfiguration(configuration *authcontroller.Configuration,
 	return &configData
 }
 
-func createConfigMap(client client.Client, configuration *authcontroller.Configuration, chains *authcontroller.ChainList) (*corev1.ConfigMap, bool) {
+func createConfigMap(client client.Client, namespace string, threads int, chains *authcontroller.ChainList) (*corev1.ConfigMap, bool) {
 	var configMap corev1.ConfigMap
 	ctx := context.Background()
 	update := true
 
-	// Create the ConfigMap to the same namespace where the Configuration object is. This is for limiting
+	// Create the ConfigMap to the same namespace where the related chains are. This is for limiting
 	// the configuration of AuthService from resources in unrelated namespaces. See
 	// https://kubernetes.io/docs/tasks/administer-cluster/securing-a-cluster/#api-authorization
 
 	configMapName := types.NamespacedName{
-		Namespace: configuration.Namespace,
+		Namespace: namespace,
 		Name:      "authservice-configmap",
 	}
 
@@ -155,11 +155,11 @@ func createConfigMap(client client.Client, configuration *authcontroller.Configu
 		update = false
 
 		configMap = corev1.ConfigMap{}
-		configMap.ObjectMeta.Namespace = configuration.Namespace
+		configMap.ObjectMeta.Namespace = namespace
 		configMap.ObjectMeta.Name = "authservice-configmap"
 	}
 
-	jsonData := createAuthserviceConfiguration(configuration, chains)
+	jsonData := createAuthserviceConfiguration(threads, chains)
 	bytes, err := json.Marshal(jsonData)
 	if err != nil {
 		return nil, false
@@ -197,40 +197,21 @@ func restartAuthService(client client.Client, logger logr.Logger, name, namespac
 	return nil
 }
 
-func getConfigOptions(client client.Client, logger logr.Logger, configName, namespace string) (*authcontroller.Configuration, *authcontroller.ChainList, error) {
+func getAllChains(client client.Client, logger logr.Logger, namespace string) (*authcontroller.ChainList, error) {
 	ctx := context.Background()
-	configurationName := types.NamespacedName{
-		Name:      configName,
-		Namespace: namespace,
-	}
 
-	var configuration authcontroller.Configuration
-
-	// Get the corresponding configuration object.
-	if err := client.Get(ctx, configurationName, &configuration); err != nil {
-		logger.Error(err, "Configuration not found, ignoring")
-		return nil, nil, err
-	}
-
-	// Get all the chains corresponding to the configuration.
+	// Get all the chains in the namespace.
 	var chains authcontroller.ChainList
 	if err := client.List(ctx, &chains, ctrlclient.InNamespace(namespace)); err != nil {
 		logger.Error(err, "Failed to get chain list, ignoring")
-		return nil, nil, err
-	}
-	correctChains := authcontroller.ChainList{}
-	for _, chain := range chains.Items {
-		if chain.Spec.Configuration == configName {
-			correctChains.Items = append(correctChains.Items, chain)
-		}
+		return nil, err
 	}
 
-	if len(correctChains.Items) == 0 {
-		logger.Info("No chains found, ignoring")
-		return nil, nil, fmt.Errorf("No chains found")
+	if len(chains.Items) == 0 {
+		return nil, fmt.Errorf("No chains found, ignoring")
 	}
 
-	return &configuration, &correctChains, nil
+	return &chains, nil
 }
 
 func createRequestAuthentication(client client.Client, logger logr.Logger, chain *authcontroller.Chain) error {

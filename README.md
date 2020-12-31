@@ -1,10 +1,10 @@
 # Authservice-webhook
 
 Authservice-webhook manages AuthService configuration. It creates and
-controls two CRDs: Configuration and Chain. The users create CRs, and the
-controller uses them to build authservice configuration files and wraps them
-into ConfigMaps. The main use case to enable multi-tenant configuration of
-AuthService running with Istio Ingress Gateway deployment.
+controls Chain CRD. The users create CRs, and the controller uses them
+to build AuthService configuration files and wraps them into ConfigMaps.
+The main use case to enable multi-tenant configuration of AuthService
+running with Istio Ingress Gateway deployment.
 
 ![Authservice-webhook diagram](doc/images/authservice-webhook.png)
 
@@ -76,27 +76,20 @@ template:
         name: authservice-configmap
 ```
 
-Install a Configuration object and at least one Chain. Make sure to change
-the Chain values to correspond to your own OIDC installation. Install the CRs
-to the namespace where you have your AuthService instance running. After this
-the ConfigMap which the AuthService needs is dynamically created and AuthService deployment (whose name is defined with `authService` key in the
-Configuration resource) in the same namespace is restarted.
+Install at least one Chain. Make sure to change the Chain values to
+correspond to your own OIDC installation. Install the Chains to the
+namespace where you have your AuthService instance running. After this
+the ConfigMap which the AuthService needs is dynamically created and
+AuthService deployment in the same namespace is restarted. The
+AuthService deployment to be restarted is given to the controller as
+command line parameter `authservice-deployment`.
 
 ```yaml
-apiVersion: authcontroller.intel.com/v1
-kind: Configuration
-metadata:
-  name: configuration-sample
-spec:
-  authService: "authservice"
-  threads: 8
----
 apiVersion: authcontroller.intel.com/v1
 kind: Chain
 metadata:
   name: chain-sample-1
 spec:
-  configuration: "configuration-sample"
   authorizationUri: "https://example.com/auth/realms/service-name/protocol/openid-connect/auth"
   tokenUri: "https://example.com/auth/realms/service-name/protocol/openid-connect/token"
   callbackUri: "https://example.com/service/oauth/callback"
@@ -110,7 +103,11 @@ match:
   prefix: "/service"
 ````
 
-If used with Ingress Gateway controller, make sure Ingress Gateway proxy is configured to use AuthService. It's important that the AuthService pod isn't part of the service mesh or otherwise Istio AuthorizationPolicy is configured to ignore it, so that the connection there works without a JWT.
+If used with Ingress Gateway controller, make sure Ingress Gateway proxy
+is configured to use AuthService. It's important that the AuthService
+pod isn't part of the service mesh or otherwise Istio
+AuthorizationPolicy is configured to ignore it, so that the connection
+there works without a JWT.
 
 ```yaml
 apiVersion: networking.istio.io/v1alpha3
@@ -237,7 +234,8 @@ spec:
                 inline_string: "-----BEGIN CERTIFICATE-----\nMIIErjCCApYCCQDeffa6ViLglzANBgkqhkiG9w0BAQsFADAZMRcwFQYDVQQDDA5j\nYTAwMC5ob21lLmxhbjAeFw0yMDExMDIxNjAxNDFaFw0yMzA4MjMxNjAxNDFaMBkx\nFzAVBgNVBAMMDmNhMDAwLmhvbWUubGFuMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A\nMIICCgKCAgEA3KBZTTx0tHvJBnJCVvjvfSpl+OgWIYO80NsSq/6Vu2QUJezZwtG8\no1m+JKN4O6WPsyRtcx1aV/4pPTgKKvF07IWFUG11O5Iu88pO5xJ5ssQjJNIuHXwG\nqxbYxk0fnNUl9mbJchGYxVIH2bJEULe167wnVYsQ2W3xYxzkH0kBJ/iClqf+z0aH\nzk9l0klS+4TOm2P+a5opi/suUEYKc+oC+KoXzBBa1j9tOpfoGGFCcHk8Ho1X6YE5\n4YeaCL0EkM7wIrlnJQuepjWbR01L7dVHePTFNxlUtipUkbjeuxPBDylT5DbRrXos\nDS1EmEJtbDpDs4BE51e0Q+bKOo2a19468iCyAirrSQWbsvat2Mu1LOowqMEF1zpH\n8BEmMTT8YPbKYB8+8UlUgySQs6jH5DOYFyK4Q2A8HHWjp937LcTm7wiEqbLgSvqL\nfS1+uw0PrUHSbu1vOJcZepFFw2UmTmwuWDiPWkKSLCFgyol1eJBFSV2uzVnKtO76\nWV9LH7H9tHM3wCnLuYs0Lmz9aiDZMzwTxhDZyoJt4vLPqAaWi0y+bHNyo8bBK75m\nbGBQZ4yWGTltu0ZWUGAa9eJ+dfqu6jFpEvGIcm0rVu0Czl2NPn3r4NyRnJWbiGKm\nf2IjGUbNTW+IimvJ7PZpZShac8qlrGpOs2aiz4HLvWSDye9zIuOCC2kCAwEAATAN\nBgkqhkiG9w0BAQsFAAOCAgEAPqsor531mVs5ofQjl2PaJxxA5xYenKrENP2YZUus\nBNsnXlxlk+XaDkMDrRaUqn9C7ZpVOyoEPG7sfmEEQDb+Cmxxlpbu8WZza3FODdSW\nCDyEDAOcggLX6AmJHs4rs7ebAN8UnPJ+8ULg/FBmHLgbu+sRpGv9Ws+f+5hwPwk2\nXfgLi6w02CVrvm9zG2JYCartlv0uQmMwwZoNu8i9JFWRPS07fnbEAnOOGTLV4JUC\nhZoV/pUi3oEe488NGMIv9pVVoCns8Jy/tHYFsvR6e+IaW7GzckElKCi0MwvWCDad\n9pBexGMBCLapaWtS2lCwgNC0stTFV/fVswUHVxY3S1Q3bI8joaWn0rhdjaLli5Gg\ncH9STlpIqlIZrob2DDvxE3PMrBRQunRfMCWFsz4It5XZfYSycJgkveIOGmouG0Bh\nmwOCIfPSjMg0ZLE0MIM8zv0A86PyQbavCOuuiD8G/2fHK604W4iMDhXtED4hKe9D\npj/4akfGbxDmN/mFfG0f+0yu55YbTLmar5R1YWnjaQwo8rKDmAyrD95Q2Wt6kYec\nRZVWmdZ32ASWQF4s1ORLsKJMZkDQEauR9qsX9TODQK25MbiVi6I/tEjVD5YvwoKW\neB5SMtlsd5aM1OFB+9PmZj52RXPvhvUJKx/0OmYrkPqlbKXzMhauBYsM4A7SUO0X\np0A=\n-----END CERTIFICATE-----"
 ```
 
-You'll need to deploy AuthService together with an Envoy sidecar which will handle the TLS termination.
+You'll need to deploy AuthService together with an Envoy sidecar which
+will handle the TLS termination.
 
 ```yaml
 apiVersion: v1
@@ -391,4 +389,5 @@ needs to be signed by the CA referenced in the `trusted_ca` field above. The
 SNI has to be `authservice.istio-system`.
 
 # Known issues and missing features
-  * Better defaults for RBAC for the Configuration and Chain objects
+  * Gathering Chains from several namespaces for a single AuthService
+    deployment.

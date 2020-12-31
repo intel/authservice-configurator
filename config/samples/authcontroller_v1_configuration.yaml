@@ -1,7 +1,0 @@
-apiVersion: authcontroller.intel.com/v1
-kind: Configuration
-metadata:
-  name: configuration-sample
-spec:
-  authService: "authservice"
-  threads: 8

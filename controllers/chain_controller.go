@@ -31,8 +31,10 @@ import (
 // ChainReconciler reconciles a Chain object
 type ChainReconciler struct {
 	client.Client
-	Log    logr.Logger
-	Scheme *runtime.Scheme
+	Log                       logr.Logger
+	Scheme                    *runtime.Scheme
+	Threads                   int
+	AuthserviceDeploymentName string
 }
 
 // +kubebuilder:rbac:groups=authcontroller.intel.com,resources=chains,verbs=get;list;watch;create;update;patch;delete
@@ -53,13 +55,14 @@ func (r *ChainReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	configuration, chains, err := getConfigOptions(r, r.Log, chain.Spec.Configuration, req.Namespace)
+	chains, err := getAllChains(r, logger, req.NamespacedName.Namespace)
 	if err != nil {
+		logger.Error(err, "Failed to get all chains")
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
 	// Generate the ConfigMap based on the configuration and the chains.
-	configMap, update := createConfigMap(r, configuration, chains)
+	configMap, update := createConfigMap(r, req.NamespacedName.Namespace, r.Threads, chains)
 
 	// Create/Update the existing ConfigMap if it exists with the new JSON file.
 	if update {
@@ -80,7 +83,7 @@ func (r *ChainReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		}
 	}
 
-	if err := restartAuthService(r, logger, configuration.Spec.AuthService, req.Namespace); err != nil {
+	if err := restartAuthService(r, logger, r.AuthserviceDeploymentName, req.Namespace); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 

@@ -76,12 +76,6 @@ var _ = BeforeSuite(func(done Done) {
 	})
 	Expect(err).ToNot(HaveOccurred())
 
-	err = (&ConfigurationReconciler{
-		Client: k8sManager.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("Configuration"),
-	}).SetupWithManager(k8sManager)
-	Expect(err).ToNot(HaveOccurred())
-
 	err = (&ChainReconciler{
 		Client: k8sManager.GetClient(),
 		Log:    ctrl.Log.WithName("controllers").WithName("Chain"),

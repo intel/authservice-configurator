@@ -18,6 +18,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"os"
 
 	istiogoscheme "istio.io/client-go/pkg/clientset/versioned/scheme"
@@ -49,14 +50,23 @@ func init() {
 
 func main() {
 	var metricsAddr string
+	var authserviceDeploymentName string
 	var enableLeaderElection bool
+	var threads int
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
+	flag.StringVar(&authserviceDeploymentName, "authservice-deployment", "authservice", "The name of AuthService deployment to be restarted after configuration change.")
 	flag.BoolVar(&enableLeaderElection, "enable-leader-election", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
+	flag.IntVar(&threads, "threads", 8, "Number of AuthService threads.")
 	flag.Parse()
 
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
+
+	if threads < 1 || threads > 1024 {
+		setupLog.Error(fmt.Errorf("thread number out of bounds [1 .. 1024]"), "unable to start manager")
+		os.Exit(1)
+	}
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:             scheme,
@@ -70,18 +80,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&controllers.ConfigurationReconciler{
-		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("Configuration"),
-		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Configuration")
-		os.Exit(1)
-	}
 	if err = (&controllers.ChainReconciler{
-		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("Chain"),
-		Scheme: mgr.GetScheme(),
+		Client:                    mgr.GetClient(),
+		Log:                       ctrl.Log.WithName("controllers").WithName("Chain"),
+		Scheme:                    mgr.GetScheme(),
+		Threads:                   threads,
+		AuthserviceDeploymentName: authserviceDeploymentName,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Chain")
 		os.Exit(1)
@@ -89,10 +93,6 @@ func main() {
 
 	if err = (&authservicewebhookv1.Chain{}).SetupWebhookWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create webhook", "webhook", "Chain")
-		os.Exit(1)
-	}
-	if err = (&authservicewebhookv1.Configuration{}).SetupWebhookWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create webhook", "webhook", "Configuration")
 		os.Exit(1)
 	}
 	// +kubebuilder:scaffold:builder
