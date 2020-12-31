@@ -171,17 +171,17 @@ func createConfigMap(client client.Client, configuration *authcontroller.Configu
 	return &configMap, update
 }
 
-func restartAuthService(client client.Client, log logr.Logger, name, namespace string) error {
+func restartAuthService(client client.Client, logger logr.Logger, name, namespace string) error {
 	ctx := context.Background()
 	// Restart AuthService deployment by adding/updating an annotation.
 	deploymentName := types.NamespacedName{
 		Namespace: namespace,
 		Name:      name,
 	}
-	_ = log.WithValues("Restarting AuthService deployment", deploymentName)
+	logger.Info("Restarting AuthService deployment", "deployment", deploymentName)
 	var deployment appsv1.Deployment
 	if err := client.Get(ctx, deploymentName, &deployment); err != nil {
-		_ = log.WithValues("Failed to find AuthService deployment", deploymentName)
+		logger.Error(err, "Failed to find AuthService deployment", "deployment", deploymentName)
 		return err
 	}
 
@@ -190,14 +190,14 @@ func restartAuthService(client client.Client, log logr.Logger, name, namespace s
 	}
 	deployment.Spec.Template.Annotations["authservice-webhook/restartedAt"] = time.Now().Format(time.RFC3339)
 	if err := client.Update(ctx, &deployment); err != nil {
-		_ = log.WithValues("Failed to update AuthService deployment", deploymentName)
+		logger.Error(err, "Failed to update AuthService deployment", "deployment", deploymentName)
 		return err
 	}
 
 	return nil
 }
 
-func getConfigOptions(client client.Client, log logr.Logger, configName, namespace string) (*authcontroller.Configuration, *authcontroller.ChainList, error) {
+func getConfigOptions(client client.Client, logger logr.Logger, configName, namespace string) (*authcontroller.Configuration, *authcontroller.ChainList, error) {
 	ctx := context.Background()
 	configurationName := types.NamespacedName{
 		Name:      configName,
@@ -208,14 +208,14 @@ func getConfigOptions(client client.Client, log logr.Logger, configName, namespa
 
 	// Get the corresponding configuration object.
 	if err := client.Get(ctx, configurationName, &configuration); err != nil {
-		_ = log.WithValues("Configuration not found, ignoring", configurationName)
+		logger.Error(err, "Configuration not found, ignoring")
 		return nil, nil, err
 	}
 
 	// Get all the chains corresponding to the configuration.
 	var chains authcontroller.ChainList
 	if err := client.List(ctx, &chains, ctrlclient.InNamespace(namespace)); err != nil {
-		_ = log.WithValues("Failed to get chain list, ignoring", configurationName)
+		logger.Error(err, "Failed to get chain list, ignoring")
 		return nil, nil, err
 	}
 	correctChains := authcontroller.ChainList{}
@@ -226,17 +226,17 @@ func getConfigOptions(client client.Client, log logr.Logger, configName, namespa
 	}
 
 	if len(correctChains.Items) == 0 {
-		_ = log.WithValues("No chains found, ignoring", configurationName)
+		logger.Info("No chains found, ignoring")
 		return nil, nil, fmt.Errorf("No chains found")
 	}
 
 	return &configuration, &correctChains, nil
 }
 
-func createRequestAuthentication(client client.Client, log logr.Logger, chain *authcontroller.Chain) error {
+func createRequestAuthentication(client client.Client, logger logr.Logger, chain *authcontroller.Chain) error {
 
 	if chain.Spec.Issuer == "" || chain.Spec.JwksURI == "" {
-		log.Info("Not creating RequestAuthentication since required values are missing")
+		logger.Info("Not creating RequestAuthentication since required values are missing")
 		return nil
 	}
 
@@ -261,6 +261,7 @@ func createRequestAuthentication(client client.Client, log logr.Logger, chain *a
 	})
 
 	if err != nil {
+		logger.Error(err, "Failed to create RequestAuthentication")
 		return err
 	}
 

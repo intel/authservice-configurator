@@ -44,12 +44,12 @@ type ChainReconciler struct {
 // Reconcile creates/updates the AuthService configuration when a Chain is modified.
 func (r *ChainReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
-	_ = r.Log.WithValues("chain", req.NamespacedName)
+	logger := r.Log.WithValues("chain", req.NamespacedName)
 
 	// Get the updated chain.
 	var chain authcontroller.Chain
 	if err := r.Get(ctx, req.NamespacedName, &chain); err != nil {
-		_ = r.Log.WithValues("Chain not found, ignoring", req.NamespacedName)
+		logger.Error(err, "Chain not found, ignoring")
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
@@ -64,23 +64,23 @@ func (r *ChainReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	// Create/Update the existing ConfigMap if it exists with the new JSON file.
 	if update {
 		if err := r.Update(ctx, configMap); err != nil {
-			_ = r.Log.WithValues("Failed to update ConfigMap for authservice", req.NamespacedName)
+			logger.Error(err, "Failed to update ConfigMap")
 			return ctrl.Result{}, client.IgnoreNotFound(err)
 		}
 	} else {
 		if err := r.Create(ctx, configMap); err != nil {
-			_ = r.Log.WithValues("Failed to create ConfigMap for authservice", req.NamespacedName)
+			logger.Error(err, "Failed to create ConfigMap")
 			return ctrl.Result{}, client.IgnoreNotFound(err)
 		}
 	}
 
 	for _, chain := range chains.Items {
-		if err := createRequestAuthentication(r, r.Log, &chain); err != nil {
+		if err := createRequestAuthentication(r, logger, &chain); err != nil {
 			return ctrl.Result{}, client.IgnoreNotFound(err)
 		}
 	}
 
-	if err := restartAuthService(r, r.Log, configuration.Spec.AuthService, req.Namespace); err != nil {
+	if err := restartAuthService(r, logger, configuration.Spec.AuthService, req.Namespace); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
