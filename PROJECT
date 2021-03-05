@@ -1,5 +1,5 @@
 domain: intel.com
-repo: intel.com/authservice-webhook
+repo: github.com/intel/authservice-configurator
 resources:
 - group: authcontroller
   kind: Chain

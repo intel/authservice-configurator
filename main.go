@@ -28,9 +28,9 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	authcontrollerv1 "intel.com/authservice-webhook/api/v1"
-	authservicewebhookv1 "intel.com/authservice-webhook/api/v1"
-	"intel.com/authservice-webhook/controllers"
+	authcontrollerv1 "github.com/intel/authservice-configurator/api/v1"
+	authservicewebhookv1 "github.com/intel/authservice-configurator/api/v1"
+	"github.com/intel/authservice-configurator/controllers"
 	// +kubebuilder:scaffold:imports
 )
 

@@ -23,7 +23,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	authcontroller "intel.com/authservice-webhook/api/v1"
+	authcontroller "github.com/intel/authservice-configurator/api/v1"
 	"istio.io/api/security/v1beta1"
 	istiosecurityv1beta1 "istio.io/client-go/pkg/apis/security/v1beta1"
 	appsv1 "k8s.io/api/apps/v1"

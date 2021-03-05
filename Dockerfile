@@ -18,8 +18,8 @@ COPY LICENSE LICENSE
 # Build
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -a -o manager main.go
 
-RUN go run github.com/google/go-licenses save intel.com/authservice-webhook --save_path=licenses
-
+# Gather license files
+RUN go run github.com/google/go-licenses save github.com/intel/authservice-configurator --save_path=licenses
 
 # Use distroless as minimal base image to package the manager binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details

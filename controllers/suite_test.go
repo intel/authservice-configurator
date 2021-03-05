@@ -30,7 +30,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	authcontrollerv1 "intel.com/authservice-webhook/api/v1"
+	authcontrollerv1 "github.com/intel/authservice-configurator/api/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	// +kubebuilder:scaffold:imports
 )

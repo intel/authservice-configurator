@@ -1,4 +1,4 @@
-module intel.com/authservice-webhook
+module github.com/intel/authservice-configurator
 
 go 1.13
 
