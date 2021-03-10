@@ -1,14 +1,14 @@
-# Authservice-webhook
+# Configurator for AuthService*
 
-Authservice-webhook manages AuthService configuration. It creates and
-controls Chain CRD. The users create CRs, and the controller uses them
-to build AuthService configuration files and wraps them into ConfigMaps.
-The main use case to enable multi-tenant configuration of AuthService
-running with Istio Ingress Gateway deployment.
+Configurator for AuthService* manages AuthService configuration. It
+creates and controls Chain CRD. The users create CRs, and the controller
+uses them to build AuthService configuration files and wraps them into
+ConfigMaps.  The main use case to enable multi-tenant configuration of
+AuthService running with Istio Ingress Gateway deployment.
 
-![Authservice-webhook diagram](doc/images/authservice-webhook.png)
+![Configurator for Authservice* diagram](doc/images/authservice-webhook.png)
 
-# Install Authservice-webhook
+# Install Configurator for AuthService*
 
 [Install cert-manager to the cluster](https://cert-manager.io/docs/installation/kubernetes/),
 and install [kubebuilder](https://book.kubebuilder.io/quick-start.html#installation) and
