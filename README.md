@@ -38,42 +38,42 @@ metadata:
   labels:
     app: authservice
 spec:
-type: ClusterIP
-ports:
-- port: 10003
-  protocol: TCP
-selector:
-  app: authservice
+  type: ClusterIP
+  ports:
+  - port: 10003
+    protocol: TCP
+  selector:
+    app: authservice
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-name: authservice
-labels:
-  app: authservice
+  name: authservice
+  labels:
+    app: authservice
 spec:
-replicas: 1
-selector:
-  matchLabels:
-  app: authservice
-template:
-  metadata:
-    labels:
+  replicas: 1
+  selector:
+    matchLabels:
       app: authservice
-  spec:
-    containers:
-    - name: authservice
-      image: adrianlzt/authservice:0.3.1-d3cd2d498169
-      imagePullPolicy: Always
-      ports:
-      - containerPort: 10003
-      volumeMounts:
+  template:
+    metadata:
+      labels:
+        app: authservice
+    spec:
+      containers:
+      - name: authservice
+        image: adrianlzt/authservice:0.3.1-d3cd2d498169
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 10003
+        volumeMounts:
+        - name: authservice-configmap-volume
+          mountPath: /etc/authservice
+      volumes:
       - name: authservice-configmap-volume
-        mountPath: /etc/authservice
-    volumes:
-    - name: authservice-configmap-volume
-      configMap:
-        name: authservice-configmap
+        configMap:
+          name: authservice-configmap
 ```
 
 Install at least one Chain. Make sure to change the Chain values to
