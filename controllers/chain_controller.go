@@ -24,7 +24,6 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	authcontroller "github.com/intel/authservice-configurator/api/v1"
 	authcontrollerv1 "github.com/intel/authservice-configurator/api/v1"
 )
 
@@ -47,13 +46,6 @@ type ChainReconciler struct {
 func (r *ChainReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
 	logger := r.Log.WithValues("chain", req.NamespacedName)
-
-	// Get the updated chain.
-	var chain authcontroller.Chain
-	if err := r.Get(ctx, req.NamespacedName, &chain); err != nil {
-		logger.Error(err, "Chain not found, ignoring")
-		return ctrl.Result{}, client.IgnoreNotFound(err)
-	}
 
 	chains, err := getAllChains(r, logger, req.NamespacedName.Namespace)
 	if err != nil {
