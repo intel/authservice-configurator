@@ -19,7 +19,6 @@ package controllers
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -205,10 +204,6 @@ func getAllChains(client client.Client, logger logr.Logger, namespace string) (*
 	if err := client.List(ctx, &chains, ctrlclient.InNamespace(namespace)); err != nil {
 		logger.Error(err, "Failed to get chain list, ignoring")
 		return nil, err
-	}
-
-	if len(chains.Items) == 0 {
-		return nil, fmt.Errorf("No chains found, ignoring")
 	}
 
 	return &chains, nil
