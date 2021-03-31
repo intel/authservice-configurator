@@ -13,15 +13,11 @@ AuthService running with Istio Ingress Gateway deployment.
 [Install cert-manager to the cluster](https://cert-manager.io/docs/installation/kubernetes/),
 and install [kubebuilder](https://book.kubebuilder.io/quick-start.html#installation) and
 [kustomize](https://kubernetes-sigs.github.io/kustomize/installation/) locally. Then run the
-following commands. Replace `<registry>` and `<tag>` with suitable values for the Docker
-registry you use.
+following commands.
 
 ```bash
-make docker-build
-docker tag controller <registry>/<tag>
-docker push <registry>/<tag>
 kubectl create namespace authservice-webhook
-make deploy IMG=<registry>/<tag>
+make deploy IMG=intel/authservice-configurator
 ```
 
 # Deploy Authservice
@@ -29,6 +25,17 @@ make deploy IMG=<registry>/<tag>
 Install AuthService Service and Deployment objects. Note that AuthService
 can't start yet because the ConfigMap is missing. If you want to integrate
 with Istio Ingress Gateway, you should deploy this to istio-system namespace.
+
+You'll need to create a Kubernetes secret containing a [GitHub access
+token](https://docs.github.com/en/github/authenticating-to-github/creating-a-personal-access-token)
+to be able to install the AuthService image from the GitHub Package Registry.
+The required scope for the access token is `read:packages` which allows
+Kubernetes to download packages from GitHub Package Registry. The secret is
+then configured to `imagePullSecrets` field in the deployment. See [Kubernetes
+private registry configuration
+document](https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/)
+for details how to create the secret from the token. The secret name in the
+examples below is `regcred`.
 
 ```yaml
 apiVersion: v1
@@ -61,9 +68,11 @@ spec:
       labels:
         app: authservice
     spec:
+      imagePullSecrets:
+      - name: regcred
       containers:
       - name: authservice
-        image: adrianlzt/authservice:0.3.1-d3cd2d498169
+        image: docker.pkg.github.com/istio-ecosystem/authservice/authservice:0.4.0-2a89ce7
         imagePullPolicy: Always
         ports:
         - containerPort: 10003
@@ -379,6 +388,8 @@ spec:
       labels:
         app: authservice-behind-envoy
     spec:
+      imagePullSecrets:
+      - name: regcred
       containers:
       - name: envoy
         image: envoyproxy/envoy:v1.16-latest
@@ -402,7 +413,7 @@ spec:
           - name: resetdir
             mountPath: /etc/ssl
       - name: authservice
-        image: adrianlzt/authservice:0.3.1-d3cd2d498169
+        image: docker.pkg.github.com/istio-ecosystem/authservice/authservice:0.4.0-2a89ce7
         imagePullPolicy: Always
         ports:
           - containerPort: 10003
